@@ -1,0 +1,42 @@
+# Starting up network...
+./network.sh up -ca#createChannel -c channel1 -ca
+./network.sh createChannel -c channel1
+
+# use this command to the binaries to the CLI that allow you to use the peer command
+export PATH=${PWD}/../bin:$PATH
+# also need to make the fabric path point to the core.yaml file
+export FABRIC_CFG_PATH=$PWD/../config/
+
+# Packaging chaincode...
+peer lifecycle chaincode package basic.tar.gz --path ../asset-transfer-basic/chaincode-javascript/ --lang node --label basic_1.0
+
+# Installing Org1 peer
+. ./scripts/envVar.sh
+setGlobals 1
+
+# Installing chaincode (org1)
+peer lifecycle chaincode install basic.tar.gz
+
+# query installed:
+peer lifecycle chaincode queryinstalled --peerAddresses localhost:7051 --tlsRootCertFiles organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+# export the above package id into (replace pkgid with above packageid)
+export PKGID=pkgid
+
+# approve org1
+peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile $PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem --channelID channel1 --name basic --version 1 --package-id $PKGID --sequence 1
+
+# now do it for org2...
+# Installing Org2 peer
+setGlobals 2
+
+# Installing chaincode (org2)
+peer lifecycle chaincode install basic.tar.gz
+
+# approve org2
+peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile $PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem --channelID channel1 --name basic --version 1 --package-id $PKGID --sequence 1
+
+# commit chaincode
+peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile $PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem --channelID channel1 --name basic --peerAddresses localhost:7051 --tlsRootCertFiles $PWD/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt --peerAddresses localhost:9051 --tlsRootCertFiles organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt --version 1 --sequence 1
+
+# check chaincode
+peer lifecycle chaincode querycommitted --channelID channel1 --name basic --cafile ${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
